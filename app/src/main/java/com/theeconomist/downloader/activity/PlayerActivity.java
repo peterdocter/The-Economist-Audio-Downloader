@@ -1,37 +1,28 @@
 package com.theeconomist.downloader.activity;
 
-import android.animation.Animator;
-import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.view.View;
-import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
-import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.RequestOptions;
 import com.theeconomist.downloader.MusicService;
 import com.theeconomist.downloader.R;
 import com.theeconomist.downloader.bean.EventBusBean;
-import com.theeconomist.downloader.bean.Mp3FileBean;
 import com.theeconomist.downloader.bean.SeekBean;
 import com.theeconomist.downloader.bean.TimeBean;
 import com.theeconomist.downloader.log.MyLog;
-import com.theeconomist.downloader.utils.CommonUtil;
+import com.theeconomist.downloader.utils.CoverLoader;
 import com.theeconomist.downloader.utils.EventType;
-import com.theeconomist.downloader.utils.FileUtil;
+import com.theeconomist.downloader.view.AlbumCoverView;
 import com.ywl5320.wlmedia.util.WlTimeUtil;
 
 import org.greenrobot.eventbus.EventBus;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import butterknife.BindView;
 import butterknife.OnClick;
@@ -41,10 +32,6 @@ import static com.bumptech.glide.request.RequestOptions.bitmapTransform;
 
 public class PlayerActivity extends BaseMusicActivity {
 
-    @BindView(R.id.iv_point)
-    ImageView ivPoint;
-    @BindView(R.id.rl_cd)
-    RelativeLayout rlCd;
     @BindView(R.id.tv_nowtime)
     TextView tvNowTime;
     @BindView(R.id.tv_totaltime)
@@ -53,8 +40,6 @@ public class PlayerActivity extends BaseMusicActivity {
     SeekBar seekBar;
     @BindView(R.id.iv_status)
     ImageView ivStatus;
-    @BindView(R.id.iv_center)
-    ImageView ivCenter;
     @BindView(R.id.iv_bg)
     ImageView ivBg;
     @BindView(R.id.pb_load)
@@ -63,10 +48,8 @@ public class PlayerActivity extends BaseMusicActivity {
     TextView tvSubTitle;
     @BindView(R.id.tv_tip)
     TextView tvTip;
+    private AlbumCoverView mAlbumCoverView;
 
-    private ValueAnimator cdAnimator;
-    private ValueAnimator pointAnimator;
-    private LinearInterpolator lin;
     private EventBusBean eventNextBean;
     private EventBusBean eventSeekBean;
     private SeekBean seekBean;
@@ -77,6 +60,8 @@ public class PlayerActivity extends BaseMusicActivity {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_play);
+
+        mAlbumCoverView=(AlbumCoverView) findViewById(R.id.album_cover_view);
         setTitleTrans(R.color.color_trans);
         setBackView();
         setTitleLine(R.color.color_trans);
@@ -88,13 +73,11 @@ public class PlayerActivity extends BaseMusicActivity {
         }
         tvSubTitle.setText(getPlayBean().getName());
 
-        lin = new LinearInterpolator();
-        initPointAnimate();
-        initCDAnimate();
         Intent intent = new Intent(this, MusicService.class);
         intent.putExtra("url", getPlayBean().getUrl());
         startService(intent);
-        Glide.with(this).load(getPlayBean().getImgByte()).apply(RequestOptions.placeholderOf(R.mipmap.icon_cd_default_bg)).into(ivCenter);
+        mAlbumCoverView.setCoverBitmap(CoverLoader.get().loadBitmapFromByteArray(getPlayBean().getImgByte()));
+        mAlbumCoverView.initNeedle(false);
         Glide.with(this).load(R.mipmap.icon_gray_bg)
                 .apply(bitmapTransform(new BlurTransformation(25, 3)).placeholder(R.mipmap.icon_gray_bg))
                 .into(ivBg);
@@ -103,7 +86,7 @@ public class PlayerActivity extends BaseMusicActivity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 position = getTimeBean().getTotalSecs() * progress / 100;
-                tvNowTime.setText(WlTimeUtil.secdsToDateFormat(position, getTimeBean().getTotalSecs()));
+                tvNowTime.setText(WlTimeUtil.secdsToDateFormat(getTimeBean().getTotalSecs()));
             }
 
             @Override
@@ -159,7 +142,8 @@ public class PlayerActivity extends BaseMusicActivity {
         playMusic();
     }
 
-    private void playMusic() {
+    @Override
+    public void playMusic() {
         if(!TextUtils.isEmpty(getPlayBean().getUrl())) {
             if (!getPlayBean().getUrl().equals(playUrl)) {
                 setCdRadio(0f);
@@ -183,18 +167,13 @@ public class PlayerActivity extends BaseMusicActivity {
         super.onMusicStatus(status);
         switch (status) {
             case PLAY_STATUS_ERROR:
-                if(ivPoint.getRotation() == 0f) {
-                    startPointAnimate(0f, -40f);
-                }
+                mAlbumCoverView.pause();
                 ivStatus.setImageResource(R.drawable.play_selector);
                 break;
             case PLAY_STATUS_LOADING:
                 pbLoad.setVisibility(View.VISIBLE);
                 ivStatus.setVisibility(View.GONE);
-                if(ivPoint.getRotation() == -40f) {
-                    rlCd.setRotation(getCdRadio());
-                    startPointAnimate(-40f, 0f);
-                }
+                mAlbumCoverView.pause();
                 ivStatus.setImageResource(R.drawable.pause_selector);
                 break;
             case PLAY_STATUS_UNLOADING:
@@ -202,25 +181,17 @@ public class PlayerActivity extends BaseMusicActivity {
                 ivStatus.setVisibility(View.VISIBLE);
                 break;
             case PLAY_STATUS_PLAYING:
-                if(ivPoint.getRotation() == -40f) {
-                    rlCd.setRotation(getCdRadio());
-                    startPointAnimate(-40f, 0f);
-                }
+                mAlbumCoverView.play();
                 ivStatus.setImageResource(R.drawable.pause_selector);
                 break;
             case PLAY_STATUS_PAUSE:
-                if(ivPoint.getRotation() == 0f) {
-                    startPointAnimate(0f, -40f);
-                }
+                mAlbumCoverView.pause();
                 ivStatus.setImageResource(R.drawable.play_selector);
                 break;
             case PLAY_STATUS_RESUME:
                 break;
             case PLAY_STATUS_COMPLETE:
-                if(ivPoint.getRotation() == -40f) {
-                    rlCd.setRotation(getCdRadio());
-                    startPointAnimate(-40f, 0f);
-                }
+                mAlbumCoverView.pause();
                 ivStatus.setImageResource(R.drawable.pause_selector);
                 playNextMusic();
                 break;
@@ -259,17 +230,6 @@ public class PlayerActivity extends BaseMusicActivity {
     protected void onResume() {
         super.onResume();
         updateTime(getTimeBean());
-        rlCd.setRotation(getCdRadio());
-        ivPoint.setRotation(-40f);
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        pointAnimator.cancel();
-        cdAnimator.cancel();
-        pointAnimator = null;
-        cdAnimator = null;
     }
 
     @OnClick(R.id.iv_status)
@@ -280,9 +240,7 @@ public class PlayerActivity extends BaseMusicActivity {
         } else if(musicStatus == PLAY_STATUS_PAUSE) {
             pauseMusic(false);
             ivStatus.setImageResource(R.drawable.pause_selector);
-            if(ivPoint.getRotation() == -40f) {
-                startPointAnimate(-40f, 0f);
-            }
+
         } else if(musicStatus == PLAY_STATUS_ERROR || musicStatus == PLAY_STATUS_COMPLETE) {
             playUrl = "";
             playMusic();
@@ -299,115 +257,6 @@ public class PlayerActivity extends BaseMusicActivity {
         playNext(true);
     }
 
-
-    /**
-     * 初始化指针动画
-     */
-    private void initPointAnimate() {
-        ivPoint.setPivotX(CommonUtil.dip2px(PlayerActivity.this, 17));
-        ivPoint.setPivotY(CommonUtil.dip2px(PlayerActivity.this, 15));
-        pointAnimator = ValueAnimator.ofFloat(0, 0);
-        pointAnimator.setTarget(ivPoint);
-        pointAnimator.setRepeatCount(0);
-        pointAnimator.setDuration(300);
-        pointAnimator.setInterpolator(lin);
-        pointAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                float current = (Float) animation.getAnimatedValue();
-                ivPoint.setRotation(current);
-            }
-        });
-
-        pointAnimator.addListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-                MyLog.d("onAnimationStart");
-                if(!isPlaying()) {
-                    pauseCDAnimate();
-                }
-            }
-
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                MyLog.d("onAnimationEnd");
-                if(isPlaying()) {
-                    resumeCDAnimate();
-                }
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-                MyLog.d("onAnimationCancel");
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animation) {
-                MyLog.d("onAnimationRepeat");
-            }
-        });
-
-    }
-
-    /**
-     * 开始指针动画
-     * @param from
-     * @param end
-     */
-    private void startPointAnimate(float from, float end) {
-        if(pointAnimator != null) {
-            if(from < end) {
-                if(!isPlaying()) {
-                    return;
-                }
-            } else {
-                if(isPlaying()) {
-                    return;
-                }
-            }
-            pointAnimator.setFloatValues(from, end);
-            pointAnimator.start();
-        }
-    }
-
-    /**
-     * 初始化CD动画
-     */
-    private void initCDAnimate() {
-        cdAnimator = ValueAnimator.ofFloat(rlCd.getRotation(), 360f + rlCd.getRotation());
-        cdAnimator.setTarget(rlCd);
-        cdAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        cdAnimator.setDuration(15000);
-        cdAnimator.setInterpolator(lin);
-        cdAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                float current = (Float) animation.getAnimatedValue();
-                setCdRadio(current);
-                rlCd.setRotation(current);
-            }
-        });
-    }
-
-    /**
-     * 开始cd动画
-     */
-    private void resumeCDAnimate() {
-        if(cdAnimator != null && !cdAnimator.isRunning()) {
-            cdAnimator.setFloatValues(rlCd.getRotation(), 360f + rlCd.getRotation());
-            cdAnimator.start();
-        }
-    }
-
-    /**
-     * 暂停CD动画
-     */
-    private void pauseCDAnimate() {
-        if(cdAnimator != null && cdAnimator.isRunning()) {
-            cdAnimator.cancel();
-        }
-    }
-
     private void updateTime(TimeBean timeBean) {
         if(timeBean != null) {
             if(timeBean.getTotalSecs() <= 0) {
@@ -415,14 +264,14 @@ public class PlayerActivity extends BaseMusicActivity {
                     seekBar.setVisibility(View.GONE);
                     tvTotalTime.setVisibility(View.GONE);
                 }
-                tvNowTime.setText(WlTimeUtil.secdsToDateFormat(timeBean.getCurrSecs(), timeBean.getTotalSecs()));
+                tvNowTime.setText(WlTimeUtil.secdsToDateFormat(timeBean.getTotalSecs()));
             } else {
                 if(seekBar.getVisibility() == View.GONE) {
                     seekBar.setVisibility(View.VISIBLE);
                     tvTotalTime.setVisibility(View.VISIBLE);
                 }
-                tvTotalTime.setText(WlTimeUtil.secdsToDateFormat(timeBean.getTotalSecs(), timeBean.getTotalSecs()));
-                tvNowTime.setText(WlTimeUtil.secdsToDateFormat(timeBean.getCurrSecs(), timeBean.getTotalSecs()));
+                tvTotalTime.setText(WlTimeUtil.secdsToDateFormat(timeBean.getTotalSecs()));
+                tvNowTime.setText(WlTimeUtil.secdsToDateFormat(timeBean.getTotalSecs()));
                 seekBar.setProgress(getProgress());
             }
         }
@@ -439,48 +288,4 @@ public class PlayerActivity extends BaseMusicActivity {
         }
     }
 
-    private void playNext(boolean next) {
-        if(FileUtil.fileList != null && FileUtil.fileList.size() > 0) {
-            int size = FileUtil.fileList.size();
-            for(int i = 0; i < size; i++) {
-                Mp3FileBean mp3File = FileUtil.fileList.get(i);
-                //当前播放的节目
-                if(mp3File.index == getPlayBean().getIndex()){
-                    if(next) {
-                        if(i == size - 1) {
-                            showToast("已经全部播放完了");
-                        } else if(i < size - 1) {
-                            mp3File = FileUtil.fileList.get(i+1);
-                            getPlayBean().setName(mp3File.name);
-                            getPlayBean().setUrl(mp3File.path);
-                            getPlayBean().setIndex(mp3File.index);
-                            getPlayBean().setDuration((int)mp3File.duration);
-                            playMusic();
-                            onPlayHistoryChange();
-                        }
-                        break;
-                    } else {
-                        if(i == 0) {
-                            showToast("已经到头了");
-                        } else if(i > 0) {
-                            mp3File = FileUtil.fileList.get(i-1);
-                            getPlayBean().setName(mp3File.name);
-                            getPlayBean().setUrl(mp3File.path);
-                            getPlayBean().setIndex(mp3File.index);
-                            getPlayBean().setDuration((int)mp3File.duration);
-                            playMusic();
-                            onPlayHistoryChange();
-                        }
-                        break;
-                    }
-                }
-            }
-        } else {
-            showToast("没有文件可以播放");
-        }
-    }
-
-    public void playNextMusic(){
-        playNext(true);
-    }
 }

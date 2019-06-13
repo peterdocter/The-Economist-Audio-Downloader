@@ -12,10 +12,13 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.theeconomist.downloader.R;
 import com.theeconomist.downloader.bean.EventBusBean;
+import com.theeconomist.downloader.bean.Mp3FileBean;
 import com.theeconomist.downloader.bean.PlayBean;
 import com.theeconomist.downloader.bean.TimeBean;
 import com.theeconomist.downloader.log.MyLog;
 import com.theeconomist.downloader.utils.EventType;
+import com.theeconomist.downloader.utils.FileUtil;
+import com.theeconomist.downloader.view.PlayPauseView;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -31,35 +34,13 @@ import butterknife.Optional;
 
 public abstract class BaseMusicActivity extends BaseActivity{
 
-    @Nullable
-    @BindView(R.id.iv_mini_menu)
-    ImageView ivMiniMenu;
-
-    @Nullable
-    @BindView(R.id.iv_mini_bg)
-    ImageView ivMiniBg;
-    
-    @Nullable
-    @BindView(R.id.tv_mini_name)
-    TextView tvMiniName;
-
-    @Nullable
-    @BindView(R.id.tv_mini_subname)
-    TextView tvMiniSubName;
-
-    @Nullable
-    @BindView(R.id.iv_mini_playstatus)
-    ImageView ivMiniPlayStatus;
-
-    @Nullable
-    @BindView(R.id.rl_mini_bar)
-    RelativeLayout rlMiniBar;
-
-    private static EventBusBean eventPauseResumeBean;//暂停、播放状态
+    //暂停、播放状态
+    private static EventBusBean eventPauseResumeBean;
     private static float cdRadio = 0f;
     private static PlayBean playBean;
     private static TimeBean timeBean;
     private static boolean isPlaying = false;
+    private boolean isExiting=false;
 
     //当前播放url
     public static String playUrl = "";
@@ -74,7 +55,6 @@ public abstract class BaseMusicActivity extends BaseActivity{
     public static final int PLAY_STATUS_RESUME = 5;
     public static final int PLAY_STATUS_COMPLETE = 6;
 
-
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -84,28 +64,7 @@ public abstract class BaseMusicActivity extends BaseActivity{
     @Override
     protected void onResume() {
         super.onResume();
-        if(ivMiniBg != null) {
-            Glide.with(this).load(getPlayBean().getImgByte()).apply(RequestOptions.placeholderOf(R.mipmap.ic_launcher)).into(ivMiniBg);
-        }
-        if(tvMiniName != null) {
-            if(!tvMiniName.getText().toString().trim().equals(getPlayBean().getName())) {
-                tvMiniName.setText(getPlayBean().getName());
-            }
-        }
-        if(tvMiniSubName != null) {
-            if(TextUtils.isEmpty(getPlayBean().getAlbumName())) {
-                tvMiniSubName.setText("The Economist");
-            }else{
-                tvMiniSubName.setText("The Economist - "+getPlayBean().getAlbumName());
-            }
-        }
         onMusicStatus(musicStatus);
-    }
-
-    @Optional
-    @OnClick(R.id.iv_mini_menu)
-    public void onClickHistory(View view) {
-
     }
 
     @Optional
@@ -116,34 +75,15 @@ public abstract class BaseMusicActivity extends BaseActivity{
         }
     }
 
-    @Optional
-    @OnClick(R.id.iv_mini_playstatus)
-    public void onClickPlayStatus(View view) {
-        if(musicStatus == PLAY_STATUS_PLAYING) {
-            pauseMusic(true);
-            if(ivMiniPlayStatus != null) {
-                ivMiniPlayStatus.setImageResource(R.drawable.svg_play);
-            }
-        } else if(musicStatus == PLAY_STATUS_PAUSE) {
-            pauseMusic(false);
-            if(ivMiniPlayStatus != null) {
-                ivMiniPlayStatus.setImageResource(R.mipmap.icon_menu_pause);
-            }
-        } else if(musicStatus == PLAY_STATUS_ERROR || musicStatus == PLAY_STATUS_COMPLETE) {
-            playUrl = "";
-        }
-    }
-
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void eventMsg(final EventBusBean messBean) {
         if(messBean.getType() == EventType.MUSIC_TIME_INFO){
             //时间信息
-            MyLog.d("播放中...");
-            if(!isPlaying) {
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setImageResource(R.mipmap.icon_menu_pause);
-                }
+            if(musicStatus==PLAY_STATUS_PAUSE){
+                pauseMusic(true);
+                return;
             }
+            MyLog.d("播放中...");
             isPlaying = true;
             timeBean = (TimeBean) messBean.getObject();
             timeInfo(timeBean);
@@ -214,6 +154,10 @@ public abstract class BaseMusicActivity extends BaseActivity{
         return isPlaying;
     }
 
+    public boolean isExiting(){
+        return isExiting;
+    }
+
     public void setCdRadio(float radio) {
         cdRadio = radio;
     }
@@ -246,47 +190,7 @@ public abstract class BaseMusicActivity extends BaseActivity{
     }
 
     public void onMusicStatus(int status) {
-        switch (status) {
-            case PLAY_STATUS_ERROR:
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setImageResource(R.drawable.svg_play);
-                }
-                break;
-            case PLAY_STATUS_LOADING:
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setVisibility(View.GONE);
-                }
-                break;
-            case PLAY_STATUS_UNLOADING:
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setVisibility(View.VISIBLE);
-                }
-                break;
-            case PLAY_STATUS_PLAYING:
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setImageResource(R.mipmap.icon_menu_pause);
-                    ivMiniPlayStatus.setVisibility(View.VISIBLE);
-                }
-                break;
-            case PLAY_STATUS_PAUSE:
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setImageResource(R.drawable.svg_play);
-                    ivMiniPlayStatus.setVisibility(View.VISIBLE);
-                }
-                break;
-            case PLAY_STATUS_RESUME:
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setImageResource(R.drawable.svg_play);
-                }
-                break;
-            case PLAY_STATUS_COMPLETE:
-                if(ivMiniPlayStatus != null) {
-                    ivMiniPlayStatus.setImageResource(R.drawable.svg_play);
-                }
-                break;
-            default:
-                    break;
-        }
+
     }
 
     public void onRelease() {
@@ -297,6 +201,59 @@ public abstract class BaseMusicActivity extends BaseActivity{
         isPlaying = false;
         playUrl = "";
         musicStatus = -1;
+    }
+
+    public void playNext(boolean next) {
+        if(FileUtil.fileList != null && FileUtil.fileList.size() > 0) {
+            int size = FileUtil.fileList.size();
+            for(int i = 0; i < size; i++) {
+                Mp3FileBean mp3File = FileUtil.fileList.get(i);
+                //当前播放的节目
+                if(mp3File.index == getPlayBean().getIndex()){
+                    if(next) {
+                        if(i == size - 1) {
+                            showToast("已经全部播放完了");
+                        } else if(i < size - 1) {
+                            mp3File = FileUtil.fileList.get(i+1);
+                            getPlayBean().setName(mp3File.name);
+                            getPlayBean().setUrl(mp3File.path);
+                            getPlayBean().setIndex(mp3File.index);
+                            getPlayBean().setDuration((int)mp3File.duration);
+                            playMusic();
+                            onPlayHistoryChange();
+                        }
+                        break;
+                    } else {
+                        if(i == 0) {
+                            showToast("已经到头了");
+                        } else if(i > 0) {
+                            mp3File = FileUtil.fileList.get(i-1);
+                            getPlayBean().setName(mp3File.name);
+                            getPlayBean().setUrl(mp3File.path);
+                            getPlayBean().setIndex(mp3File.index);
+                            getPlayBean().setDuration((int)mp3File.duration);
+                            playMusic();
+                            onPlayHistoryChange();
+                        }
+                        break;
+                    }
+                }
+            }
+        } else {
+            showToast("没有文件可以播放");
+        }
+    }
+
+    public void playNextMusic(){
+        playNext(true);
+    }
+
+    public void playMusic(){
+
+    }
+
+    public void setIsExiting(boolean isExiting){
+        this.isExiting=isExiting;
     }
 
 }

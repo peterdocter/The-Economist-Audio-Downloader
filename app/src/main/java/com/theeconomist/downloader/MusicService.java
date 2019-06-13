@@ -24,6 +24,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 public class MusicService extends Service {
+
     private WlMedia wlMedia;
     private String url;
     private double duration;
@@ -34,6 +35,7 @@ public class MusicService extends Service {
     private EventBusBean pauseResumeEventBean;
 
     public MusicService() {
+
     }
 
     @Override
@@ -78,7 +80,13 @@ public class MusicService extends Service {
             @Override
             public void onTimeInfo(double time) {
                 TimeBean timeBean=new TimeBean();
-                timeBean.setCurrSecs((int)time);
+
+                if(Math.floor(time)>duration){
+                    timeBean.setCurrSecs((int)duration);
+                }else{
+                    timeBean.setCurrSecs((int)Math.floor(time));
+                }
+
                 timeBean.setTotalSecs((int)duration);
                 if(timeEventBean == null) {
                     timeEventBean = new EventBusBean(EventType.MUSIC_TIME_INFO, timeBean);
@@ -171,6 +179,11 @@ public class MusicService extends Service {
             if(wlMedia != null) {
                 SeekBean seekBean = (SeekBean) messBean.getObject();
                 wlMedia.seek(seekBean.getPosition());
+            }
+        } else if(messBean.getType()== EventType.MUSIC_STOP){
+            if(wlMedia != null) {
+                wlMedia.stop();
+                wlMedia=null;
             }
         }
     }

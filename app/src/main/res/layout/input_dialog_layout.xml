@@ -18,6 +18,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingBottom="10dp"
             android:weightSum="2"
             >
 
@@ -27,11 +28,14 @@
                 android:layout_weight="1"
                 android:textColor="@color/color_222222"
                 android:text="期刊号"
+                android:gravity="center"
                 />
             <EditText
                 android:id="@+id/issue"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:inputType="number"
+                android:background="@drawable/edittext_background"
                 android:layout_weight="1"
                 />
         </LinearLayout>
@@ -39,6 +43,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingBottom="10dp"
             android:weightSum="2"
             >
 
@@ -47,12 +52,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:textColor="@color/color_222222"
+                android:gravity="center"
                 android:text="年"
                 />
             <EditText
                 android:id="@+id/year"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:inputType="number"
+                android:background="@drawable/edittext_background"
                 android:layout_weight="1"
                 />
         </LinearLayout>
@@ -60,6 +68,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingBottom="10dp"
             android:weightSum="2"
             >
 
@@ -68,12 +77,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:textColor="@color/color_222222"
+                android:gravity="center"
                 android:text="月"
                 />
             <EditText
                 android:id="@+id/month"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:inputType="number"
+                android:background="@drawable/edittext_background"
                 android:layout_weight="1"
                 />
         </LinearLayout>
@@ -82,7 +94,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:weightSum="2"
-            android:orientation="horizontal"
+            android:paddingBottom="10dp"
             >
 
             <TextView
@@ -90,12 +102,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:textColor="@color/color_222222"
+                android:gravity="center"
                 android:text="日"
                 />
             <EditText
                 android:id="@+id/day"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:inputType="number"
+                android:background="@drawable/edittext_background"
                 android:layout_weight="1"
                 />
         </LinearLayout>
@@ -123,7 +138,7 @@
                 android:text="确定"
                 android:gravity="center"
                 android:textSize="14sp"
-                android:textColor="@color/color_ec4c48"
+                android:textColor="@color/color_222222"
                 />
         </LinearLayout>
 
